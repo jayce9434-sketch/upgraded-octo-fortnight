@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#17191d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mechyard" />
+  <title>Mechyard Sandbox</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="world" aria-label="Mechyard physics world"></canvas>
+  <div id="toastLayer"></div>
+  <div id="dragGhost" class="dragGhost hidden"><span id="dragGhostIcon"></span><b id="dragGhostName"></b></div>
+
+  <header id="topbar">
+    <button id="libraryToggle" class="squareBtn active" title="Spawn menu">ITEMS</button>
+    <button id="mapButton" class="squareBtn" title="Choose map">MAPS</button>
+    <button id="pauseButton" class="squareBtn" title="Pause physics">PAUSE</button>
+    <button id="slowButton" class="squareBtn" title="Slow motion">1X</button>
+    <span class="topSpacer"></span>
+    <div class="statusChip"><span>FPS</span><b id="fpsText">60</b></div>
+    <div class="statusChip"><span>OBJECTS</span><b id="objectCount">0</b></div>
+    <button id="undoButton" class="squareBtn" title="Undo">UNDO</button>
+    <button id="redoButton" class="squareBtn" title="Redo">REDO</button>
+    <button id="settingsButton" class="squareBtn" title="Settings">SET</button>
+  </header>
+
+  <aside id="libraryPanel" class="open">
+    <div class="libraryTop">
+      <div><b>SPAWN MENU</b><small>Tap to arm an item, or drag it directly into the world</small></div>
+      <button id="libraryClose" class="miniBtn">HIDE</button>
+    </div>
+    <div id="categoryTabs" class="categoryTabs">
+      <button class="active" data-category="living">LIVING</button>
+      <button data-category="blocks">BLOCKS</button>
+      <button data-category="mechanics">MECH</button>
+      <button data-category="logic">LOGIC</button>
+      <button data-category="vehicles">BUILDS</button>
+      <button data-category="ropes">ROPES</button>
+      <button data-category="utility">OTHER</button>
+      <button data-category="mods">MODS</button>
+    </div>
+    <div class="searchRow">
+      <input id="itemSearch" type="search" placeholder="Search items" autocomplete="off" />
+      <button id="clearSearch" class="miniBtn">X</button>
+    </div>
+    <div id="itemGrid" class="itemGrid"></div>
+    <div class="libraryFooter">
+      <button id="clearLivingButton">CLEAR LIVING</button>
+      <button id="clearEverythingButton" class="danger">CLEAR BUILD</button>
+    </div>
+  </aside>
+
+  <nav id="toolbelt">
+    <button class="tool active" data-tool="select"><b>HAND</b><small>Grab / swipe</small></button>
+    <button class="tool" data-tool="activate"><b>ACT</b><small>Use / power</small></button>
+    <button class="tool" data-tool="rope"><b>ROPE</b><small>Physical rope</small></button>
+    <button class="tool" data-tool="steelrope"><b>CABLE</b><small>Steel cable</small></button>
+    <button class="tool" data-tool="fixedrope"><b>FIXED</b><small>Tight cable</small></button>
+    <button class="tool" data-tool="slider"><b>SLIDER</b><small>Rail joint</small></button>
+    <button class="tool" data-tool="rigid"><b>ROD</b><small>Rigid link</small></button>
+    <button class="tool" data-tool="spring"><b>SPRING</b><small>Elastic</small></button>
+    <button class="tool" data-tool="suspension"><b>SUSP</b><small>Damped link</small></button>
+    <button class="tool" data-tool="winchrope"><b>WINCH</b><small>Retractable</small></button>
+    <button class="tool" data-tool="pin"><b>PIN</b><small>Hinge point</small></button>
+    <button class="tool" data-tool="weld"><b>WELD</b><small>Rigid parent</small></button>
+    <button class="tool" data-tool="wire"><b>WIRE</b><small>Activation</small></button>
+    <button class="tool" data-tool="freeze"><b>FREEZE</b><small>Lock</small></button>
+    <button class="tool" data-tool="nocollide"><b>NOCOL</b><small>Collision</small></button>
+    <button class="tool" data-tool="delete"><b>DELETE</b><small>Remove</small></button>
+  </nav>
+
+  <div id="hint" class="hint">Drag objects directly. Swipe empty space to move the camera. Pinch to zoom.</div>
+
+  <section id="selectionPanel" class="selectionPanel hidden">
+    <div class="selectionHead">
+      <div><b id="selectionName">Object</b><small id="selectionInfo">Dynamic</small></div>
+      <button id="selectionMore" class="miniBtn">MORE</button>
+    </div>
+    <div id="livingStatus" class="livingStatus hidden">
+      <div><span>HEALTH</span><b id="healthText">100%</b></div><div class="healthTrack"><i id="healthFill"></i></div>
+      <div class="brainRow"><span id="brainText">AI: ACTIVE</span><span id="moodText">IDLE</span></div>
+    </div>
+    <div class="quickActions">
+      <button id="selFreeze">FREEZE</button>
+      <button id="selActivate">ACTIVATE</button>
+      <button id="selCopy">COPY</button>
+      <button id="selDelete" class="danger">DELETE</button>
+    </div>
+  </section>
+
+  <section id="contextPanel" class="sheet hidden">
+    <div class="sheetCard">
+      <div class="sheetHead"><div><b id="contextTitle">Object</b><small id="contextSubtitle">Object options</small></div><button data-close="contextPanel">X</button></div>
+      <div id="contextActions" class="contextActions"></div>
+      <div id="livingActions" class="livingActions hidden">
+        <h3>LIVING BRAIN</h3>
+        <div class="actionGrid">
+          <button data-living-action="stand">STAND</button>
+          <button data-living-action="wander">WANDER</button>
+          <button data-living-action="run">RUN</button>
+          <button data-living-action="follow">FOLLOW CURSOR</button>
+          <button data-living-action="sit">SIT</button>
+          <button data-living-action="sleep">SLEEP</button>
+          <button data-living-action="recover">GET UP</button>
+          <button data-living-action="jump">JUMP</button>
+          <button data-living-action="grab">GRAB NEAREST</button>
+          <button data-living-action="release">RELEASE</button>
+          <button data-living-action="heal">HEAL</button>
+          <button data-living-action="brain">TOGGLE AI</button>
+        </div>
+      </div>
+      <div id="machineControls" class="machineControls hidden">
+        <h3>MACHINE</h3><div id="machineControlRows"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mapPanel" class="modal hidden">
+    <div class="modalCard wideCard">
+      <div class="modalHead"><div><h2>MAPS</h2><p>Terrain changes without deleting your build. Some maps add water, lava or unusual gravity.</p></div><button data-close="mapPanel">X</button></div>
+      <div id="mapGrid" class="mapGrid"></div>
+    </div>
+  </section>
+
+  <section id="settingsPanel" class="modal hidden">
+    <div class="modalCard settingsCard">
+      <div class="modalHead"><div><h2>SANDBOX SETTINGS</h2><p>Physics, building controls, visuals and saves.</p></div><button data-close="settingsPanel">X</button></div>
+      <div class="settingRow"><label>World gravity <span id="gravityValue">1.00</span>x</label><input id="gravitySlider" type="range" min="-1" max="2" value="1" step="0.05" /></div>
+      <div class="settingRow"><label>Physics speed <span id="timeValue">1.00</span>x</label><input id="timeSlider" type="range" min="0.1" max="2" value="1" step="0.05" /></div>
+      <div class="settingRow"><label>Grab strength <span id="grabValue">125</span>%</label><input id="grabSlider" type="range" min="40" max="220" value="125" step="5" /></div>
+      <div class="settingRow"><label>Touch grab radius <span id="touchRadiusValue">34</span> px</label><input id="touchRadiusSlider" type="range" min="12" max="64" value="34" step="2" /></div>
+      <div class="toggleGrid">
+        <label><input id="jointToggle" type="checkbox" checked /><span>Show connections</span></label>
+        <label><input id="gridToggle" type="checkbox" checked /><span>Show grid</span></label>
+        <label><input id="snapToggle" type="checkbox" /><span>Grid snap</span></label>
+        <label><input id="sfxToggle" type="checkbox" checked /><span>Sound effects</span></label>
+        <label><input id="musicToggle" type="checkbox" /><span>Ambient music</span></label>
+        <label><input id="damageToggle" type="checkbox" checked /><span>Living damage</span></label>
+      </div>
+      <div class="modalButtons three">
+        <button id="saveButton">SAVE BUILD</button><button id="loadButton">LOAD BUILD</button><button id="resetCamera">RESET CAMERA</button>
+      </div>
+      <div class="modalButtons three">
+        <button id="exportButton">EXPORT JSON</button><button id="importButton">IMPORT JSON</button><button id="workshopButton">WORKSHOP</button>
+      </div>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
+    </div>
+  </section>
+
+  <section id="workshopPanel" class="modal hidden">
+    <div class="modalCard wideCard">
+      <div class="modalHead"><div><h2>WORKSHOP</h2><p>Verity and Verity Monster stay featured. Eight additional packs rotate automatically every three hours.</p></div><button data-close="workshopPanel">X</button></div>
+      <div class="rotationStrip"><span>NEXT WORKSHOP ROTATION</span><b id="rotationTimer">00:00:00</b></div>
+      <div id="workshopGrid" class="workshopGrid"></div>
+    </div>
+  </section>
+
+  <section id="modDetail" class="modal hidden">
+    <div class="modalCard modCardLarge">
+      <div class="modalHead"><div><h2 id="modTitle">MOD</h2><p id="modAuthor">Workshop</p></div><button data-close="modDetail">X</button></div>
+      <canvas id="modPreview" width="720" height="300"></canvas>
+      <p id="modDescription" class="modDescription"></p>
+      <div id="modFeatures" class="featureChips"></div>
+      <button id="modInstallButton" class="primary">INSTALL TO SPAWN MENU</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+<script src="mechyard-v2.js"></script>
+</body>
+</html>
